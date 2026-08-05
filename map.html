@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <title>マンホールカードマップ</title>
+  <!-- スマホ向けの表示調整 -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  
+  <!-- Leaflet -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  
+  <!-- MarkerCluster (グループ化) 用のCSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
+
+  <style>
+    /* 画面いっぱいに地図を表示 */
+    body { padding: 0; margin: 0; }
+    html, body, #map { height: 100%; width: 100vw; }
+
+    /* ポップアップをスマホ向けに調整 */
+    .popup-content {
+      font-size: 16px;
+      line-height: 1.4;
+      max-width: 280px;
+    }
+    .popup-content b { font-size: 18px; }
+    .popup-content label {
+      display: flex;
+      align-items: center;
+      margin-top: 10px;
+      padding: 10px;
+      background: #f0f0f0;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .popup-content input[type="checkbox"] {
+      width: 24px;
+      height: 24px;
+      margin-right: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<!-- Leaflet -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- SheetJS -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<!-- MarkerCluster (グループ化) 用のJS -->
+<script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
+
+<script>
+  // 初期位置（日本全体）
+  const map = L.map('map', {
+    tap: L.Browser.mobile, // スマホでのタップの反応を向上
+    layers: [
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors'
+      })
+    ]
+  }).setView([37.5, 137.5], 5);
+
+  // 取得済みデータ
+  let visited = JSON.parse(localStorage.getItem("visited")) || {};
+  function save() { localStorage.setItem("visited", JSON.stringify(visited)); }
+
+  // 🎨 ピンのアイコン定義（くっきり表示＋スマホ用に少し大きめ設定）
+  const commonSettings = {
+    iconSize: [45, 46],   // 横, 縦のサイズ
+    iconAnchor: [22, 46],  // ピンの針の位置（中央, 下）
+    popupAnchor: [0, -45]  // ポップアップが出る位置
+  };
+
+  const blueIcon = new L.Icon({
+    iconUrl: './map-pin-blue.png',
+    ...commonSettings
+  });
+
+  const greenIcon = new L.Icon({
+    iconUrl: './map-pin-green.png',
+    ...commonSettings
+  });
+
+  let places = [];
+  const markersArray = [];
+
+  // MarkerClusterグループを作成
+  const markerClusterGroup = L.markerClusterGroup({
+    spiderfyOnMaxZoom: true, // 同じ位置にあるピンをバラけさせる
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    maxClusterRadius: 50 // グループ化の範囲設定
+  });
+
+  // ポップアップHTML生成
+  function createPopupContent(place) {
+    const checked = visited[place.id] ? "checked" : "";
+    return `
+      <div class="popup-content">
+        <b>${place.name}</b><br>
+        <small>${place.address || ''}</small><br>
+        <label>
+          <input type="checkbox" ${checked} onchange="toggleCheck('${place.id}')">
+          <b>取得済み</b>
+        </label>
+      </div>
+    `;
+  }
+
+  // チェック切り替え
+  window.toggleCheck = function(id) {
+    visited[id] = !visited[id];
+    save();
+
+    places.forEach((place, index) => {
+      if (String(place.id) === String(id)) {
+        const marker = markersArray[index];
+        if (marker) {
+          marker.setIcon(visited[id] ? greenIcon : blueIcon);
+          marker.setPopupContent(createPopupContent(place));
+        }
+      }
+    });
+  };
+
+  // マーカーを作成
+  function createMarker(place) {
+    const lat = parseFloat(place.lat);
+    const lng = parseFloat(place.lng);
+    if (isNaN(lat) || isNaN(lng)) return null;
+
+    const icon = visited[place.id] ? greenIcon : blueIcon;
+    return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
+  }
+
+  // Excel読み込み
+  fetch('./places.xlsx')
+    .then(response => {
+      if (!response.ok) throw new Error('places.xlsx が見つかりません');
+      return response.arrayBuffer();
+    })
+    .then(buffer => {
+      const workbook = XLSX.read(buffer, { type: 'array' });
+      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+      places = XLSX.utils.sheet_to_json(worksheet);
+
+      places.forEach((place, index) => {
+        const marker = createMarker(place);
+        if (marker) {
+          markersArray[index] = marker;
+          markerClusterGroup.addLayer(marker);
+        }
+      });
+
+      map.addLayer(markerClusterGroup);
+    })
+    .catch(error => console.error('エラー:', error));
+
+</script>
+
+</body>
+</html>
