@@ -15,10 +15,138 @@
 
   <style>
     /* 画面いっぱいに地図を表示 */
-    body { padding: 0; margin: 0; }
-    html, body, #map { height: 100%; width: 100vw; }
+    body { padding: 0; margin: 0; font-family: sans-serif; }
+    html, body { height: 100%; width: 100vw; overflow: hidden; }
 
-    /* ポップアップをスマホ向けに調整 */
+    /* ★追加：画面上部に固定する進捗バー */
+    #header-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 50px;
+      background: rgba(255, 255, 255, 0.95);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 0 12px;
+      box-sizing: border-box;
+    }
+
+    .progress-info {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 4px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .progress-container {
+      width: 100%;
+      background-color: #e0e0e0;
+      border-radius: 10px;
+      height: 8px;
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      width: 0%;
+      background-color: #28a745;
+      transition: width 0.3s ease;
+    }
+
+    .pref-btn {
+      background: #007bff;
+      color: white;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    /* ★修正：地図の位置調整（ヘッダー50px分下げる） */
+    #map {
+      height: calc(100% - 50px);
+      margin-top: 50px;
+      width: 100vw;
+    }
+
+    /* ★追加：都道府県別モーダルダイアログ */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background: white;
+      width: 90%;
+      max-width: 400px;
+      max-height: 80vh;
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-sizing: border-box;
+    }
+
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #ddd;
+      padding-bottom: 8px;
+      margin-bottom: 12px;
+    }
+
+    .modal-header h3 { margin: 0; font-size: 16px; }
+    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
+
+    .modal-body {
+      overflow-y: auto;
+      flex-grow: 1;
+    }
+
+    .pref-row {
+      margin-bottom: 10px;
+    }
+
+    .pref-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+
+    .pref-progress-container {
+      width: 100%;
+      background: #f0f0f0;
+      height: 6px;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .pref-progress-bar {
+      height: 100%;
+      background: #17a2b8;
+      width: 0%;
+    }
+
+    /* ポップアップの既存スタイル */
     .popup-content {
       font-size: 15px;
       line-height: 1.4;
@@ -26,7 +154,6 @@
     }
     .popup-content b.title { font-size: 17px; }
     
-    /* 追加：詳細情報の表示エリア */
     .popup-info {
       margin: 8px 0;
       font-size: 13px;
@@ -35,10 +162,9 @@
       padding: 8px;
       border-radius: 4px;
       border-left: 3px solid #007bff;
-      white-space: pre-wrap; /* 改行も綺麗に表示 */
+      white-space: pre-wrap;
     }
 
-    /* 追加：公式HPへのリンクボタン */
     .popup-hp-btn {
       display: block;
       text-align: center;
@@ -73,7 +199,31 @@
 </head>
 <body>
 
+<!-- ★追加：画面上部の進捗バー -->
+<div id="header-bar">
+  <div class="progress-info">
+    <span id="total-text">取得済み: 0 / 0 (0.0%)</span>
+    <button class="pref-btn" onclick="openPrefModal()">都道府県別</button>
+  </div>
+  <div class="progress-container">
+    <div id="total-progress-bar" class="progress-bar"></div>
+  </div>
+</div>
+
 <div id="map"></div>
+
+<!-- ★追加：都道府県別達成度モーダル -->
+<div id="pref-modal" class="modal-overlay" onclick="closePrefModal()">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h3>都道府県別 達成度</h3>
+      <button class="close-btn" onclick="closePrefModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="pref-list">
+      <!-- JavaScriptで動的に生成 -->
+    </div>
+  </div>
+</div>
 
 <!-- Leaflet -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -87,7 +237,7 @@
 <script>
   // 初期位置（日本全体）
   const map = L.map('map', {
-    tap: L.Browser.mobile, // スマホでのタップの反応を向上
+    tap: L.Browser.mobile,
     layers: [
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
@@ -99,11 +249,11 @@
   let visited = JSON.parse(localStorage.getItem("visited")) || {};
   function save() { localStorage.setItem("visited", JSON.stringify(visited)); }
 
-  // 🎨 ピンのアイコン定義（くっきり表示＋スマホ用に少し大きめ設定）
+  // 🎨 ピンのアイコン定義
   const commonSettings = {
-    iconSize: [45, 46],   // 横, 縦のサイズ
-    iconAnchor: [22, 46],  // ピンの針の位置（中央, 下）
-    popupAnchor: [0, -45]  // ポップアップが出る位置
+    iconSize: [45, 46],
+    iconAnchor: [22, 46],
+    popupAnchor: [0, -45]
   };
 
   const blueIcon = new L.Icon({
@@ -121,20 +271,16 @@
 
   // MarkerClusterグループを作成
   const markerClusterGroup = L.markerClusterGroup({
-    spiderfyOnMaxZoom: true, // 同じ位置にあるピンをバラけさせる
+    spiderfyOnMaxZoom: true,
     showCoverageOnHover: false,
     zoomToBoundsOnClick: true,
-    maxClusterRadius: 50 // グループ化の範囲設定
+    maxClusterRadius: 50
   });
 
-  // ポップアップHTML生成（infoとhpを追加）
+  // ポップアップHTML生成
   function createPopupContent(place) {
     const checked = visited[place.id] ? "checked" : "";
-    
-    // info（詳細情報）があれば表示
     const infoHtml = place.info ? `<div class="popup-info">${place.info}</div>` : '';
-    
-    // hp（ホームページ）があればボタン表示
     const hpHtml = place.hp ? `<a href="${place.hp}" target="_blank" rel="noopener" class="popup-hp-btn">🌐 公式サイトを開く</a>` : '';
 
     return `
@@ -151,7 +297,74 @@
     `;
   }
 
-  // チェック切り替え
+  // ★追加：進捗メーター＆都道府県別リストの更新ロジック
+  function updateProgress() {
+    const total = places.length;
+    if (total === 0) return;
+
+    const count = Object.values(visited).filter(Boolean).length;
+    const percent = ((count / total) * 100).toFixed(1);
+
+    // ヘッダーバーの更新
+    document.getElementById('total-text').innerText = `取得済み: ${count} / ${total} (${percent}%)`;
+    document.getElementById('total-progress-bar').style.width = `${percent}%`;
+
+    // モーダル内容の更新
+    renderPrefList();
+  }
+
+  // ★追加：都道府県名を取得（Column名の表記揺れ対策）
+  function getPrefName(place) {
+    return place.pref || place.prefecture || place.都道府県 || 'その他';
+  }
+
+  // ★追加：都道府県別リストの作成
+  function renderPrefList() {
+    const prefData = {};
+
+    places.forEach(place => {
+      const pref = getPrefName(place);
+      if (!prefData[pref]) {
+        prefData[pref] = { total: 0, visited: 0 };
+      }
+      prefData[pref].total++;
+      if (visited[place.id]) {
+        prefData[pref].visited++;
+      }
+    });
+
+    const prefListEl = document.getElementById('pref-list');
+    prefListEl.innerHTML = '';
+
+    Object.keys(prefData).forEach(pref => {
+      const data = prefData[pref];
+      const percent = ((data.visited / data.total) * 100).toFixed(1);
+
+      const row = document.createElement('div');
+      row.className = 'pref-row';
+      row.innerHTML = `
+        <div class="pref-label">
+          <span><b>${pref}</b> (${data.visited}/${data.total})</span>
+          <span>${percent}%</span>
+        </div>
+        <div class="pref-progress-container">
+          <div class="pref-progress-bar" style="width: ${percent}%;"></div>
+        </div>
+      `;
+      prefListEl.appendChild(row);
+    });
+  }
+
+  // ★追加：モーダルの表示・非表示コントロール
+  window.openPrefModal = function() {
+    document.getElementById('pref-modal').style.display = 'flex';
+  };
+
+  window.closePrefModal = function() {
+    document.getElementById('pref-modal').style.display = 'none';
+  };
+
+  // ★修正：チェック切り替え（進捗バーの更新処理を連携）
   window.toggleCheck = function(id) {
     visited[id] = !visited[id];
     save();
@@ -165,6 +378,9 @@
         }
       }
     });
+
+    // プログレスバーも同時に更新
+    updateProgress();
   };
 
   // マーカーを作成
@@ -197,6 +413,9 @@
       });
 
       map.addLayer(markerClusterGroup);
+
+      // ★追加：読み込み完了時にプログレスバーを初期表示
+      updateProgress();
     })
     .catch(error => console.error('エラー:', error));
 
