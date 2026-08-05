@@ -313,9 +313,21 @@
     renderPrefList();
   }
 
-  // ★追加：都道府県名を取得（Column名の表記揺れ対策）
+// ★修正：住所(address)の先頭から都道府県名を自動検出する
   function getPrefName(place) {
-    return place.pref || place.prefecture || place.都道府県 || 'その他';
+    if (place.pref) return place.pref;
+    if (place.prefecture) return place.prefecture;
+    if (place.都道府県) return place.都道府県;
+
+    // address（住所）から「北海道」「東京都」「〇〇府」「〇〇県」を抽出
+    if (place.address) {
+      const match = place.address.match(/^(.{2,3}[都道府県])/);
+      if (match) {
+        return match[1];
+      }
+    }
+
+    return 'その他';
   }
 
   // ★追加：都道府県別リストの作成
