@@ -20,11 +20,41 @@
 
     /* ポップアップをスマホ向けに調整 */
     .popup-content {
-      font-size: 16px;
+      font-size: 15px;
       line-height: 1.4;
       max-width: 280px;
     }
-    .popup-content b { font-size: 18px; }
+    .popup-content b.title { font-size: 17px; }
+    
+    /* 追加：詳細情報の表示エリア */
+    .popup-info {
+      margin: 8px 0;
+      font-size: 13px;
+      color: #333;
+      background: #f8f9fa;
+      padding: 8px;
+      border-radius: 4px;
+      border-left: 3px solid #007bff;
+      white-space: pre-wrap; /* 改行も綺麗に表示 */
+    }
+
+    /* 追加：公式HPへのリンクボタン */
+    .popup-hp-btn {
+      display: block;
+      text-align: center;
+      background: #007bff;
+      color: #fff !important;
+      text-decoration: none;
+      padding: 8px;
+      border-radius: 5px;
+      font-weight: bold;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+    .popup-hp-btn:active {
+      background: #0056b3;
+    }
+
     .popup-content label {
       display: flex;
       align-items: center;
@@ -97,13 +127,22 @@
     maxClusterRadius: 50 // グループ化の範囲設定
   });
 
-  // ポップアップHTML生成
+  // ポップアップHTML生成（infoとhpを追加）
   function createPopupContent(place) {
     const checked = visited[place.id] ? "checked" : "";
+    
+    // info（詳細情報）があれば表示
+    const infoHtml = place.info ? `<div class="popup-info">${place.info}</div>` : '';
+    
+    // hp（ホームページ）があればボタン表示
+    const hpHtml = place.hp ? `<a href="${place.hp}" target="_blank" rel="noopener" class="popup-hp-btn">🌐 公式サイトを開く</a>` : '';
+
     return `
       <div class="popup-content">
-        <b>${place.name}</b><br>
-        <small>${place.address || ''}</small><br>
+        <b class="title">${place.name || ''}</b><br>
+        <small>${place.address || ''}</small>
+        ${infoHtml}
+        ${hpHtml}
         <label>
           <input type="checkbox" ${checked} onchange="toggleCheck('${place.id}')">
           <b>取得済み</b>
