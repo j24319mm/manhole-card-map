@@ -70,14 +70,14 @@
       cursor: pointer;
     }
 
-    /* 地図の位置調整（ヘッダー50px分下げる） */
+    /* 地図の位置調整 */
     #map {
       height: calc(100% - 50px);
       margin-top: 50px;
       width: 100vw;
     }
 
-    /* フィルターコントロールパネル（地図右上） */
+    /* フィルターコントロールパネル */
     .filter-panel {
       position: absolute;
       top: 60px;
@@ -91,7 +91,6 @@
       line-height: 1.5;
     }
 
-    /* トグルボタン風ラジオグループ */
     .toggle-group {
       display: flex;
       background: #eee;
@@ -126,11 +125,9 @@
       color: #28a745;
       cursor: pointer;
     }
-    .open-today-check input {
-      margin-right: 6px;
-    }
+    .open-today-check input { margin-right: 6px; }
 
-    /* ポップアップタグ表示 */
+    /* ポップアップバッジ */
     .badge-today {
       display: inline-block;
       background: #28a745;
@@ -152,7 +149,7 @@
       margin-bottom: 4px;
     }
 
-    /* 都道府県別モーダルダイアログ */
+    /* モーダル */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -197,7 +194,6 @@
     .pref-progress-container { width: 100%; background: #f0f0f0; height: 6px; border-radius: 3px; overflow: hidden; }
     .pref-progress-bar { height: 100%; background: #17a2b8; width: 0%; }
 
-    /* ポップアップの既存スタイル */
     .popup-content { font-size: 15px; line-height: 1.4; max-width: 280px; }
     .popup-content b.title { font-size: 17px; }
     .popup-info { margin: 8px 0; font-size: 13px; color: #333; background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #007bff; white-space: pre-wrap; }
@@ -208,7 +204,6 @@
 </head>
 <body>
 
-<!-- 画面上部の進捗バー -->
 <div id="header-bar">
   <div class="progress-info">
     <span id="total-text">取得済み: 0 / 0 (0.0%)</span>
@@ -219,10 +214,8 @@
   </div>
 </div>
 
-<!-- 地図 -->
 <div id="map"></div>
 
-<!-- フィルターコントロールパネル -->
 <div class="filter-panel">
   <div class="toggle-group">
     <label>
@@ -244,7 +237,6 @@
   </label>
 </div>
 
-<!-- 都道府県別達成度モーダル -->
 <div id="pref-modal" class="modal-overlay" onclick="closePrefModal()">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -264,8 +256,10 @@
 <!-- MarkerCluster (グループ化) 用のJS -->
 <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 
+<!-- ★追加：日本の祝日判定ライブラリ -->
+<script src="https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.8/lib/japanese-holidays.min.js"></script>
+
 <script>
-  // 初期位置（日本全体）
   const map = L.map('map', {
     tap: L.Browser.mobile,
     layers: [
@@ -275,37 +269,22 @@
     ]
   }).setView([37.5, 137.5], 5);
 
-  // 取得済みデータ
   let visited = JSON.parse(localStorage.getItem("visited")) || {};
   function save() { localStorage.setItem("visited", JSON.stringify(visited)); }
 
-  // 🎨 ピンのアイコン定義（青・緑・赤）
   const commonSettings = {
     iconSize: [45, 46],
     iconAnchor: [22, 46],
     popupAnchor: [0, -45]
   };
 
-  const blueIcon = new L.Icon({
-    iconUrl: './map-pin-blue.png',
-    ...commonSettings
-  });
-
-  const greenIcon = new L.Icon({
-    iconUrl: './map-pin-green.png',
-    ...commonSettings
-  });
-
-  // ★追加：本日配布なし用の赤ピン（HTML内の画像ファイルがあるか、または標準Leaflet赤ピンをフォールバック使用）
-  const redIcon = new L.Icon({
-    iconUrl: './map-pin-red.png', // もし自前で画像がある場合はこれを使用
-    ...commonSettings
-  });
+  const blueIcon = new L.Icon({ iconUrl: './map-pin-blue.png', ...commonSettings });
+  const greenIcon = new L.Icon({ iconUrl: './map-pin-green.png', ...commonSettings });
+  const redIcon = new L.Icon({ iconUrl: './map-pin-red.png', ...commonSettings });
 
   let places = [];
   const markersArray = [];
 
-  // MarkerClusterグループを作成
   const markerClusterGroup = L.markerClusterGroup({
     spiderfyOnMaxZoom: true,
     showCoverageOnHover: false,
@@ -313,37 +292,61 @@
     maxClusterRadius: 50
   });
 
-  // 今日が「平日」か「土日祝」か判定
-  function isTodayOpen(place) {
-    const dayOfWeek = new Date().getDay(); // 0:日, 1:月...6:土
-    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
-    
-    const targetText = ((place.tag || '') + ' ' + (place.info || '')).toLowerCase();
+  // ★「祝日」および「振り替え休日」の判定関数
+  function checkIsHoliday(dateObj) {
+    return !!JapaneseHolidays.isHoliday(dateObj);
+  }
 
-    if (targetText.includes('平日のみ') || targetText.includes('平日限定')) {
-      return !isWeekend;
+  // ★100%精度の「本日配布中」判定ロジック（パターンコード＋祝日ライブラリ）
+  function isTodayOpen(place) {
+    const today = new Date();
+    const month = today.getMonth() + 1; // 1〜12
+    const date = today.getDate(); // 1〜31
+    const day = today.getDay(); 
+    const isHoliday = checkIsHoliday(today);
+    const isWeekendOrHoliday = (day === 0 || day === 6 || isHoliday);
+
+    const type = (place.schedule_type || 'ALL').toString().trim().toUpperCase();
+
+    // ★年末年始チェック（12/29〜1/3）
+    const isYearEndPeriod = (month === 12 && date >= 29) || (month === 1 && date <= 3);
+    if (type.includes('OFF_YEAR_END') && isYearEndPeriod) {
+      return false; // 年末年始期間中は休み（赤ピン）
     }
-    if (targetText.includes('土日のみ') || targetText.includes('休日のみ') || targetText.includes('土日祝のみ')) {
-      return isWeekend;
+
+    // 1. 年中無休
+    if (type.includes('ALL')) return true;
+
+    // 2. 平日のみ
+    if (type.includes('WEEKDAY') && isWeekendOrHoliday) return false;
+
+    // 3. 土日祝のみ
+    if (type.includes('WEEKEND') && !isWeekendOrHoliday) return false;
+
+    // 4. 定休日パターン判定 (OFF_MON など)
+    const daysMap = { 'OFF_SUN': 0, 'OFF_MON': 1, 'OFF_TUE': 2, 'OFF_WED': 3, 'OFF_THU': 4, 'OFF_FRI': 5, 'OFF_SAT': 6 };
+    for (let key in daysMap) {
+      if (type.includes(key)) {
+        const targetDay = daysMap[key];
+        if (day === targetDay) return isHoliday ? true : false;
+
+        // 振替休日チェック
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        if (yesterday.getDay() === targetDay && checkIsHoliday(yesterday)) {
+          return false;
+        }
+      }
     }
-    
+
     return true;
   }
 
-  // ★ピンの色を判定する関数（緑 = 取得済み / 青 = 未取得・本日配布中 / 赤 = 未取得・本日配布なし）
   function getCorrectIcon(place) {
-    const isVisited = !!visited[place.id];
-    if (isVisited) {
-      return greenIcon; // 取得済みは「緑」
-    }
-    const isOpen = isTodayOpen(place);
-    if (!isOpen) {
-      return redIcon; // 未取得 ＋ 本日配布なしは「赤」
-    }
-    return blueIcon; // 未取得 ＋ 本日配布中は「青」
+    if (visited[place.id]) return greenIcon;
+    return isTodayOpen(place) ? blueIcon : redIcon;
   }
 
-  // ポップアップHTML生成
   function createPopupContent(place) {
     const checked = visited[place.id] ? "checked" : "";
     const infoHtml = place.info ? `<div class="popup-info">${place.info}</div>` : '';
@@ -352,7 +355,7 @@
     const isOpen = isTodayOpen(place);
     const badgeHtml = isOpen 
       ? `<span class="badge-today">🟢 本日配布中</span>` 
-      : `<span class="badge-closed">🔴 本日配布なし（休日・平日限定など）</span>`;
+      : `<span class="badge-closed">🔴 本日配布なし（定休日・振替休日等）</span>`;
 
     return `
       <div class="popup-content">
@@ -369,7 +372,6 @@
     `;
   }
 
-  // 進捗メーター＆都道府県別リストの更新
   function updateProgress() {
     const total = places.length;
     if (total === 0) return;
@@ -383,7 +385,6 @@
     renderPrefList();
   }
 
-  // 都道府県名の自動抽出
   function getPrefName(place) {
     if (place.pref) return place.pref;
     if (place.prefecture) return place.prefecture;
@@ -396,7 +397,6 @@
     return 'その他';
   }
 
-  // 都道府県別リストの作成
   function renderPrefList() {
     const prefData = {};
 
@@ -433,7 +433,6 @@
     });
   }
 
-  // モーダル表示制御
   window.openPrefModal = function() {
     document.getElementById('pref-modal').style.display = 'flex';
   };
@@ -442,7 +441,6 @@
     document.getElementById('pref-modal').style.display = 'none';
   };
 
-  // フィルター条件の適用
   window.applyFilters = function() {
     const statusFilter = document.querySelector('input[name="statusFilter"]:checked').value;
     const todayOnly = document.getElementById('todayOnlyFilter').checked;
@@ -469,7 +467,6 @@
     });
   };
 
-  // チェック切り替え
   window.toggleCheck = function(id) {
     visited[id] = !visited[id];
     save();
@@ -478,7 +475,6 @@
       if (String(place.id) === String(id)) {
         const marker = markersArray[index];
         if (marker) {
-          // アイコンの自動判定（緑・青・赤）
           marker.setIcon(getCorrectIcon(place));
           marker.setPopupContent(createPopupContent(place));
         }
@@ -489,18 +485,15 @@
     applyFilters();
   };
 
-  // マーカーを作成
   function createMarker(place) {
     const lat = parseFloat(place.lat);
     const lng = parseFloat(place.lng);
     if (isNaN(lat) || isNaN(lng)) return null;
 
-    // ピンアイコン（青 / 緑 / 赤）を取得
     const icon = getCorrectIcon(place);
     return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
   }
 
-  // Excel読み込み
   fetch('./places.xlsx')
     .then(response => {
       if (!response.ok) throw new Error('places.xlsx が見つかりません');
@@ -520,7 +513,6 @@
       });
 
       map.addLayer(markerClusterGroup);
-
       updateProgress();
     })
     .catch(error => console.error('エラー:', error));
