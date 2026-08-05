@@ -18,7 +18,7 @@
     body { padding: 0; margin: 0; font-family: sans-serif; }
     html, body { height: 100%; width: 100vw; overflow: hidden; }
 
-    /* ★追加：画面上部に固定する進捗バー */
+    /* 画面上部に固定する進捗バー */
     #header-bar {
       position: absolute;
       top: 0;
@@ -70,14 +70,89 @@
       cursor: pointer;
     }
 
-    /* ★修正：地図の位置調整（ヘッダー50px分下げる） */
+    /* 地図の位置調整（ヘッダー50px分下げる） */
     #map {
       height: calc(100% - 50px);
       margin-top: 50px;
       width: 100vw;
     }
 
-    /* ★追加：都道府県別モーダルダイアログ */
+    /* フィルターコントロールパネル（地図右上） */
+    .filter-panel {
+      position: absolute;
+      top: 60px;
+      right: 10px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px 12px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    /* トグルボタン風ラジオグループ */
+    .toggle-group {
+      display: flex;
+      background: #eee;
+      border-radius: 6px;
+      padding: 2px;
+      margin-bottom: 6px;
+    }
+    .toggle-group label {
+      flex: 1;
+      text-align: center;
+      padding: 4px 8px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: bold;
+      color: #555;
+      border-radius: 4px;
+      user-select: none;
+    }
+    .toggle-group input[type="radio"] { display: none; }
+    .toggle-group input[type="radio"]:checked + span {
+      background: #007bff;
+      color: #fff;
+      display: block;
+      border-radius: 4px;
+      padding: 4px 0;
+    }
+
+    .open-today-check {
+      display: flex;
+      align-items: center;
+      font-weight: bold;
+      color: #28a745;
+      cursor: pointer;
+    }
+    .open-today-check input {
+      margin-right: 6px;
+    }
+
+    /* ポップアップタグ表示 */
+    .badge-today {
+      display: inline-block;
+      background: #28a745;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .badge-closed {
+      display: inline-block;
+      background: #dc3545;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+
+    /* 都道府県別モーダルダイアログ */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -116,90 +191,24 @@
     .modal-header h3 { margin: 0; font-size: 16px; }
     .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
 
-    .modal-body {
-      overflow-y: auto;
-      flex-grow: 1;
-    }
-
-    .pref-row {
-      margin-bottom: 10px;
-    }
-
-    .pref-label {
-      display: flex;
-      justify-content: space-between;
-      font-size: 12px;
-      margin-bottom: 2px;
-    }
-
-    .pref-progress-container {
-      width: 100%;
-      background: #f0f0f0;
-      height: 6px;
-      border-radius: 3px;
-      overflow: hidden;
-    }
-
-    .pref-progress-bar {
-      height: 100%;
-      background: #17a2b8;
-      width: 0%;
-    }
+    .modal-body { overflow-y: auto; flex-grow: 1; }
+    .pref-row { margin-bottom: 10px; }
+    .pref-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+    .pref-progress-container { width: 100%; background: #f0f0f0; height: 6px; border-radius: 3px; overflow: hidden; }
+    .pref-progress-bar { height: 100%; background: #17a2b8; width: 0%; }
 
     /* ポップアップの既存スタイル */
-    .popup-content {
-      font-size: 15px;
-      line-height: 1.4;
-      max-width: 280px;
-    }
+    .popup-content { font-size: 15px; line-height: 1.4; max-width: 280px; }
     .popup-content b.title { font-size: 17px; }
-    
-    .popup-info {
-      margin: 8px 0;
-      font-size: 13px;
-      color: #333;
-      background: #f8f9fa;
-      padding: 8px;
-      border-radius: 4px;
-      border-left: 3px solid #007bff;
-      white-space: pre-wrap;
-    }
-
-    .popup-hp-btn {
-      display: block;
-      text-align: center;
-      background: #007bff;
-      color: #fff !important;
-      text-decoration: none;
-      padding: 8px;
-      border-radius: 5px;
-      font-weight: bold;
-      margin: 8px 0;
-      font-size: 13px;
-    }
-    .popup-hp-btn:active {
-      background: #0056b3;
-    }
-
-    .popup-content label {
-      display: flex;
-      align-items: center;
-      margin-top: 10px;
-      padding: 10px;
-      background: #f0f0f0;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    .popup-content input[type="checkbox"] {
-      width: 24px;
-      height: 24px;
-      margin-right: 10px;
-    }
+    .popup-info { margin: 8px 0; font-size: 13px; color: #333; background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #007bff; white-space: pre-wrap; }
+    .popup-hp-btn { display: block; text-align: center; background: #007bff; color: #fff !important; text-decoration: none; padding: 8px; border-radius: 5px; font-weight: bold; margin: 8px 0; font-size: 13px; }
+    .popup-content label { display: flex; align-items: center; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; cursor: pointer; }
+    .popup-content input[type="checkbox"] { width: 24px; height: 24px; margin-right: 10px; }
   </style>
 </head>
 <body>
 
-<!-- ★追加：画面上部の進捗バー -->
+<!-- 画面上部の進捗バー -->
 <div id="header-bar">
   <div class="progress-info">
     <span id="total-text">取得済み: 0 / 0 (0.0%)</span>
@@ -210,18 +219,39 @@
   </div>
 </div>
 
+<!-- 地図 -->
 <div id="map"></div>
 
-<!-- ★追加：都道府県別達成度モーダル -->
+<!-- フィルターコントロールパネル -->
+<div class="filter-panel">
+  <div class="toggle-group">
+    <label>
+      <input type="radio" name="statusFilter" value="all" checked onchange="applyFilters()">
+      <span>すべて</span>
+    </label>
+    <label>
+      <input type="radio" name="statusFilter" value="unvisited" onchange="applyFilters()">
+      <span>未取得</span>
+    </label>
+    <label>
+      <input type="radio" name="statusFilter" value="visited" onchange="applyFilters()">
+      <span>取得済</span>
+    </label>
+  </div>
+  <label class="open-today-check">
+    <input type="checkbox" id="todayOnlyFilter" onchange="applyFilters()">
+    <span>🟢 本日配布中のみ</span>
+  </label>
+</div>
+
+<!-- 都道府県別達成度モーダル -->
 <div id="pref-modal" class="modal-overlay" onclick="closePrefModal()">
   <div class="modal-content" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h3>都道府県別 達成度</h3>
       <button class="close-btn" onclick="closePrefModal()">&times;</button>
     </div>
-    <div class="modal-body" id="pref-list">
-      <!-- JavaScriptで動的に生成 -->
-    </div>
+    <div class="modal-body" id="pref-list"></div>
   </div>
 </div>
 
@@ -249,7 +279,7 @@
   let visited = JSON.parse(localStorage.getItem("visited")) || {};
   function save() { localStorage.setItem("visited", JSON.stringify(visited)); }
 
-  // 🎨 ピンのアイコン定義
+  // 🎨 ピンのアイコン定義（青・緑・赤）
   const commonSettings = {
     iconSize: [45, 46],
     iconAnchor: [22, 46],
@@ -266,6 +296,12 @@
     ...commonSettings
   });
 
+  // ★追加：本日配布なし用の赤ピン（HTML内の画像ファイルがあるか、または標準Leaflet赤ピンをフォールバック使用）
+  const redIcon = new L.Icon({
+    iconUrl: './map-pin-red.png', // もし自前で画像がある場合はこれを使用
+    ...commonSettings
+  });
+
   let places = [];
   const markersArray = [];
 
@@ -277,14 +313,50 @@
     maxClusterRadius: 50
   });
 
+  // 今日が「平日」か「土日祝」か判定
+  function isTodayOpen(place) {
+    const dayOfWeek = new Date().getDay(); // 0:日, 1:月...6:土
+    const isWeekend = (dayOfWeek === 0 || dayOfWeek === 6);
+    
+    const targetText = ((place.tag || '') + ' ' + (place.info || '')).toLowerCase();
+
+    if (targetText.includes('平日のみ') || targetText.includes('平日限定')) {
+      return !isWeekend;
+    }
+    if (targetText.includes('土日のみ') || targetText.includes('休日のみ') || targetText.includes('土日祝のみ')) {
+      return isWeekend;
+    }
+    
+    return true;
+  }
+
+  // ★ピンの色を判定する関数（緑 = 取得済み / 青 = 未取得・本日配布中 / 赤 = 未取得・本日配布なし）
+  function getCorrectIcon(place) {
+    const isVisited = !!visited[place.id];
+    if (isVisited) {
+      return greenIcon; // 取得済みは「緑」
+    }
+    const isOpen = isTodayOpen(place);
+    if (!isOpen) {
+      return redIcon; // 未取得 ＋ 本日配布なしは「赤」
+    }
+    return blueIcon; // 未取得 ＋ 本日配布中は「青」
+  }
+
   // ポップアップHTML生成
   function createPopupContent(place) {
     const checked = visited[place.id] ? "checked" : "";
     const infoHtml = place.info ? `<div class="popup-info">${place.info}</div>` : '';
     const hpHtml = place.hp ? `<a href="${place.hp}" target="_blank" rel="noopener" class="popup-hp-btn">🌐 公式サイトを開く</a>` : '';
 
+    const isOpen = isTodayOpen(place);
+    const badgeHtml = isOpen 
+      ? `<span class="badge-today">🟢 本日配布中</span>` 
+      : `<span class="badge-closed">🔴 本日配布なし（休日・平日限定など）</span>`;
+
     return `
       <div class="popup-content">
+        ${badgeHtml}<br>
         <b class="title">${place.name || ''}</b><br>
         <small>${place.address || ''}</small>
         ${infoHtml}
@@ -297,7 +369,7 @@
     `;
   }
 
-  // ★追加：進捗メーター＆都道府県別リストの更新ロジック
+  // 進捗メーター＆都道府県別リストの更新
   function updateProgress() {
     const total = places.length;
     if (total === 0) return;
@@ -305,32 +377,26 @@
     const count = Object.values(visited).filter(Boolean).length;
     const percent = ((count / total) * 100).toFixed(1);
 
-    // ヘッダーバーの更新
     document.getElementById('total-text').innerText = `取得済み: ${count} / ${total} (${percent}%)`;
     document.getElementById('total-progress-bar').style.width = `${percent}%`;
 
-    // モーダル内容の更新
     renderPrefList();
   }
 
-// ★修正：住所(address)の先頭から都道府県名を自動検出する
+  // 都道府県名の自動抽出
   function getPrefName(place) {
     if (place.pref) return place.pref;
     if (place.prefecture) return place.prefecture;
     if (place.都道府県) return place.都道府県;
 
-    // address（住所）から「北海道」「東京都」「〇〇府」「〇〇県」を抽出
     if (place.address) {
       const match = place.address.match(/^(.{2,3}[都道府県])/);
-      if (match) {
-        return match[1];
-      }
+      if (match) return match[1];
     }
-
     return 'その他';
   }
 
-  // ★追加：都道府県別リストの作成
+  // 都道府県別リストの作成
   function renderPrefList() {
     const prefData = {};
 
@@ -367,7 +433,7 @@
     });
   }
 
-  // ★追加：モーダルの表示・非表示コントロール
+  // モーダル表示制御
   window.openPrefModal = function() {
     document.getElementById('pref-modal').style.display = 'flex';
   };
@@ -376,7 +442,34 @@
     document.getElementById('pref-modal').style.display = 'none';
   };
 
-  // ★修正：チェック切り替え（進捗バーの更新処理を連携）
+  // フィルター条件の適用
+  window.applyFilters = function() {
+    const statusFilter = document.querySelector('input[name="statusFilter"]:checked').value;
+    const todayOnly = document.getElementById('todayOnlyFilter').checked;
+
+    markerClusterGroup.clearLayers();
+
+    places.forEach((place, index) => {
+      const isVisited = !!visited[place.id];
+      const isOpenToday = isTodayOpen(place);
+      const marker = markersArray[index];
+
+      if (!marker) return;
+
+      let statusMatch = false;
+      if (statusFilter === 'all') statusMatch = true;
+      else if (statusFilter === 'visited' && isVisited) statusMatch = true;
+      else if (statusFilter === 'unvisited' && !isVisited) statusMatch = true;
+
+      let todayMatch = !todayOnly || isOpenToday;
+
+      if (statusMatch && todayMatch) {
+        markerClusterGroup.addLayer(marker);
+      }
+    });
+  };
+
+  // チェック切り替え
   window.toggleCheck = function(id) {
     visited[id] = !visited[id];
     save();
@@ -385,14 +478,15 @@
       if (String(place.id) === String(id)) {
         const marker = markersArray[index];
         if (marker) {
-          marker.setIcon(visited[id] ? greenIcon : blueIcon);
+          // アイコンの自動判定（緑・青・赤）
+          marker.setIcon(getCorrectIcon(place));
           marker.setPopupContent(createPopupContent(place));
         }
       }
     });
 
-    // プログレスバーも同時に更新
     updateProgress();
+    applyFilters();
   };
 
   // マーカーを作成
@@ -401,7 +495,8 @@
     const lng = parseFloat(place.lng);
     if (isNaN(lat) || isNaN(lng)) return null;
 
-    const icon = visited[place.id] ? greenIcon : blueIcon;
+    // ピンアイコン（青 / 緑 / 赤）を取得
+    const icon = getCorrectIcon(place);
     return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
   }
 
@@ -426,7 +521,6 @@
 
       map.addLayer(markerClusterGroup);
 
-      // ★追加：読み込み完了時にプログレスバーを初期表示
       updateProgress();
     })
     .catch(error => console.error('エラー:', error));
