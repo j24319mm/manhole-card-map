@@ -3,29 +3,35 @@
 <head>
   <meta charset="utf-8" />
   <title>マンホールカードマップ</title>
-  <!-- スマホ向けの表示調整 -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   
-  <!-- MarkerCluster (グループ化) 用のCSS -->
+  <!-- MarkerCluster -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
   <style>
-    /* 画面いっぱいに地図を表示 */
-    body { padding: 0; margin: 0; font-family: sans-serif; }
-    html, body { height: 100%; width: 100vw; overflow: hidden; }
+    /* 100dvh を使用してスマホのUIバー干渉を防止 */
+    html, body {
+      height: 100dvh;
+      width: 100vw;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
 
-    /* 画面上部に固定する進捗バー */
+    /* ヘッダーバー */
     #header-bar {
       position: absolute;
       top: 0;
       left: 0;
       width: 100%;
-      height: 50px;
+      height: 54px;
       background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(4px);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
       z-index: 1000;
       display: flex;
@@ -64,31 +70,34 @@
       background: #007bff;
       color: white;
       border: none;
-      padding: 4px 8px;
+      padding: 5px 10px;
       border-radius: 4px;
       font-size: 11px;
+      font-weight: bold;
       cursor: pointer;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
     }
+    .pref-btn:active { background: #0056b3; }
 
-    /* 地図の位置調整 */
+    /* 地図エリア */
     #map {
-      height: calc(100% - 50px);
-      margin-top: 50px;
+      height: calc(100dvh - 54px);
+      margin-top: 54px;
       width: 100vw;
     }
 
-    /* フィルターコントロールパネル */
+    /* フィルターパネル */
     .filter-panel {
       position: absolute;
-      top: 60px;
+      top: 64px;
       right: 10px;
       z-index: 1000;
       background: rgba(255, 255, 255, 0.95);
-      padding: 8px 12px;
+      backdrop-filter: blur(4px);
+      padding: 8px 10px;
       border-radius: 8px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.2);
       font-size: 12px;
-      line-height: 1.5;
     }
 
     .toggle-group {
@@ -101,7 +110,7 @@
     .toggle-group label {
       flex: 1;
       text-align: center;
-      padding: 4px 8px;
+      padding: 4px 6px;
       cursor: pointer;
       font-size: 11px;
       font-weight: bold;
@@ -122,31 +131,32 @@
       display: flex;
       align-items: center;
       font-weight: bold;
-      color: #28a745;
+      color: #1e7e34;
       cursor: pointer;
+      user-select: none;
     }
     .open-today-check input { margin-right: 6px; }
 
-    /* ポップアップバッジ */
+    /* バッジ */
     .badge-today {
       display: inline-block;
       background: #28a745;
       color: white;
-      font-size: 10px;
+      font-size: 11px;
       padding: 2px 6px;
-      border-radius: 3px;
+      border-radius: 4px;
       font-weight: bold;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .badge-closed {
       display: inline-block;
       background: #dc3545;
       color: white;
-      font-size: 10px;
+      font-size: 11px;
       padding: 2px 6px;
-      border-radius: 3px;
+      border-radius: 4px;
       font-weight: bold;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
 
     /* モーダル */
@@ -156,7 +166,7 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 100%;
+      height: 100dvh;
       background: rgba(0, 0, 0, 0.5);
       z-index: 2000;
       justify-content: center;
@@ -165,14 +175,14 @@
 
     .modal-content {
       background: white;
-      width: 90%;
+      width: 88%;
       max-width: 400px;
-      max-height: 80vh;
-      border-radius: 8px;
+      max-height: 75dvh;
+      border-radius: 12px;
       padding: 16px;
       display: flex;
       flex-direction: column;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
       box-sizing: border-box;
     }
 
@@ -180,26 +190,27 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-bottom: 1px solid #ddd;
+      border-bottom: 1px solid #eee;
       padding-bottom: 8px;
       margin-bottom: 12px;
     }
 
     .modal-header h3 { margin: 0; font-size: 16px; }
-    .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; }
+    .close-btn { background: none; border: none; font-size: 22px; cursor: pointer; color: #666; }
 
-    .modal-body { overflow-y: auto; flex-grow: 1; }
-    .pref-row { margin-bottom: 10px; }
-    .pref-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px; }
+    .modal-body { overflow-y: auto; flex-grow: 1; padding-right: 4px; }
+    .pref-row { margin-bottom: 12px; }
+    .pref-label { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 3px; }
     .pref-progress-container { width: 100%; background: #f0f0f0; height: 6px; border-radius: 3px; overflow: hidden; }
-    .pref-progress-bar { height: 100%; background: #17a2b8; width: 0%; }
+    .pref-progress-bar { height: 100%; background: #17a2b8; width: 0%; transition: width 0.3s ease; }
 
-    .popup-content { font-size: 15px; line-height: 1.4; max-width: 280px; }
-    .popup-content b.title { font-size: 17px; }
-    .popup-info { margin: 8px 0; font-size: 13px; color: #333; background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #007bff; white-space: pre-wrap; }
-    .popup-hp-btn { display: block; text-align: center; background: #007bff; color: #fff !important; text-decoration: none; padding: 8px; border-radius: 5px; font-weight: bold; margin: 8px 0; font-size: 13px; }
-    .popup-content label { display: flex; align-items: center; margin-top: 10px; padding: 10px; background: #f0f0f0; border-radius: 5px; cursor: pointer; }
-    .popup-content input[type="checkbox"] { width: 24px; height: 24px; margin-right: 10px; }
+    /* ポップアップ */
+    .popup-content { font-size: 14px; line-height: 1.4; max-width: 260px; }
+    .popup-content b.title { font-size: 16px; display: block; margin-top: 2px; }
+    .popup-info { margin: 8px 0; font-size: 12px; color: #333; background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #007bff; white-space: pre-wrap; word-break: break-word; }
+    .popup-hp-btn { display: block; text-align: center; background: #007bff; color: #fff !important; text-decoration: none; padding: 8px; border-radius: 6px; font-weight: bold; margin: 8px 0; font-size: 12px; }
+    .popup-content label { display: flex; align-items: center; margin-top: 10px; padding: 8px 10px; background: #f0f0f0; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 13px; }
+    .popup-content input[type="checkbox"] { width: 20px; height: 20px; margin-right: 8px; }
   </style>
 </head>
 <body>
@@ -247,16 +258,10 @@
   </div>
 </div>
 
-<!-- Leaflet -->
+<!-- JS Libraries -->
 <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-
-<!-- SheetJS -->
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
-<!-- MarkerCluster (グループ化) 用のJS -->
 <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
-
-<!-- ★追加：日本の祝日判定ライブラリ -->
 <script src="https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.8/lib/japanese-holidays.min.js"></script>
 
 <script>
@@ -292,49 +297,51 @@
     maxClusterRadius: 50
   });
 
-  // ★「祝日」および「振り替え休日」の判定関数
+  // ★修正ポイント1: ライブラリ未読み込み時でもクラッシュしない安全装置
   function checkIsHoliday(dateObj) {
-    return !!JapaneseHolidays.isHoliday(dateObj);
+    if (typeof JapaneseHolidays !== 'undefined' && JapaneseHolidays.isHoliday) {
+      return !!JapaneseHolidays.isHoliday(dateObj);
+    }
+    return false;
   }
 
-  // ★100%精度の「本日配布中」判定ロジック（パターンコード＋祝日ライブラリ）
+  // ★修正ポイント2: カンマ区切りのschedule_type（例: OFF_MON,OFF_YEAR_END）に対応
   function isTodayOpen(place) {
     const today = new Date();
-    const month = today.getMonth() + 1; // 1〜12
-    const date = today.getDate(); // 1〜31
-    const day = today.getDay(); 
+    const month = today.getMonth() + 1;
+    const date = today.getDate();
+    const day = today.getDay();
     const isHoliday = checkIsHoliday(today);
     const isWeekendOrHoliday = (day === 0 || day === 6 || isHoliday);
 
-    const type = (place.schedule_type || 'ALL').toString().trim().toUpperCase();
+    const rawType = (place.schedule_type || 'ALL').toString().trim().toUpperCase();
+    const types = rawType.split(',').map(t => t.trim());
 
-    // ★年末年始チェック（12/29〜1/3）
+    // 1. 年末年始チェック（12/29〜1/3）
     const isYearEndPeriod = (month === 12 && date >= 29) || (month === 1 && date <= 3);
-    if (type.includes('OFF_YEAR_END') && isYearEndPeriod) {
-      return false; // 年末年始期間中は休み（赤ピン）
+    if (types.includes('OFF_YEAR_END') && isYearEndPeriod) {
+      return false;
     }
 
-    // 1. 年中無休
-    if (type.includes('ALL')) return true;
+    // 2. 年中無休
+    if (types.includes('ALL')) return true;
 
-    // 2. 平日のみ
-    if (type.includes('WEEKDAY') && isWeekendOrHoliday) return false;
+    // 3. 平日限定（土日祝はお休み）
+    if (types.includes('WEEKDAY') && isWeekendOrHoliday) {
+      return false;
+    }
 
-    // 3. 土日祝のみ
-    if (type.includes('WEEKEND') && !isWeekendOrHoliday) return false;
+    // 4. 土日祝限定（平日はお休み）
+    if (types.includes('WEEKEND') && !isWeekendOrHoliday) {
+      return false;
+    }
 
-    // 4. 定休日パターン判定 (OFF_MON など)
+    // 5. 特定曜日のお休みチェック (例: OFF_MON)
     const daysMap = { 'OFF_SUN': 0, 'OFF_MON': 1, 'OFF_TUE': 2, 'OFF_WED': 3, 'OFF_THU': 4, 'OFF_FRI': 5, 'OFF_SAT': 6 };
     for (let key in daysMap) {
-      if (type.includes(key)) {
-        const targetDay = daysMap[key];
-        if (day === targetDay) return isHoliday ? true : false;
-
-        // 振替休日チェック
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        if (yesterday.getDay() === targetDay && checkIsHoliday(yesterday)) {
-          return false;
+      if (types.includes(key)) {
+        if (day === daysMap[key]) {
+          return isHoliday; // 当該曜日でも祝日なら開館（一般的な運用）
         }
       }
     }
@@ -355,31 +362,38 @@
     const isOpen = isTodayOpen(place);
     const badgeHtml = isOpen 
       ? `<span class="badge-today">🟢 本日配布中</span>` 
-      : `<span class="badge-closed">🔴 本日配布なし（定休日・振替休日等）</span>`;
+      : `<span class="badge-closed">🔴 本日配布なし（定休日等）</span>`;
 
     return `
       <div class="popup-content">
         ${badgeHtml}<br>
-        <b class="title">${place.name || ''}</b><br>
-        <small>${place.address || ''}</small>
+        <b class="title">${place.name || ''}</b>
+        <small style="color: #666;">${place.address || ''}</small>
         ${infoHtml}
         ${hpHtml}
         <label>
           <input type="checkbox" ${checked} onchange="toggleCheck('${place.id}')">
-          <b>取得済み</b>
+          <span>取得済み</span>
         </label>
       </div>
     `;
   }
 
+  // ★修正ポイント3: 重複ID（平日・休日窓口）に対応した正確なカード種類数基準の進捗計算
   function updateProgress() {
-    const total = places.length;
-    if (total === 0) return;
+    if (places.length === 0) return;
 
-    const count = Object.values(visited).filter(Boolean).length;
-    const percent = ((count / total) * 100).toFixed(1);
+    const allUniqueIds = new Set(places.map(p => p.id));
+    const totalCards = allUniqueIds.size;
 
-    document.getElementById('total-text').innerText = `取得済み: ${count} / ${total} (${percent}%)`;
+    let visitedCount = 0;
+    allUniqueIds.forEach(id => {
+      if (visited[id]) visitedCount++;
+    });
+
+    const percent = totalCards > 0 ? ((visitedCount / totalCards) * 100).toFixed(1) : "0.0";
+
+    document.getElementById('total-text').innerText = `取得済み: ${visitedCount} / ${totalCards} (${percent}%)`;
     document.getElementById('total-progress-bar').style.width = `${percent}%`;
 
     renderPrefList();
@@ -397,32 +411,32 @@
     return 'その他';
   }
 
+  // ★修正ポイント4: 都道府県別モーダルもカード種類数ベースで集計
   function renderPrefList() {
     const prefData = {};
 
     places.forEach(place => {
       const pref = getPrefName(place);
       if (!prefData[pref]) {
-        prefData[pref] = { total: 0, visited: 0 };
+        prefData[pref] = new Set();
       }
-      prefData[pref].total++;
-      if (visited[place.id]) {
-        prefData[pref].visited++;
-      }
+      prefData[pref].add(place.id);
     });
 
     const prefListEl = document.getElementById('pref-list');
     prefListEl.innerHTML = '';
 
     Object.keys(prefData).forEach(pref => {
-      const data = prefData[pref];
-      const percent = ((data.visited / data.total) * 100).toFixed(1);
+      const cardIds = Array.from(prefData[pref]);
+      const total = cardIds.length;
+      const visitedCount = cardIds.filter(id => visited[id]).length;
+      const percent = total > 0 ? ((visitedCount / total) * 100).toFixed(1) : "0.0";
 
       const row = document.createElement('div');
       row.className = 'pref-row';
       row.innerHTML = `
         <div class="pref-label">
-          <span><b>${pref}</b> (${data.visited}/${data.total})</span>
+          <span><b>${pref}</b> (${visitedCount}/${total})</span>
           <span>${percent}%</span>
         </div>
         <div class="pref-progress-container">
