@@ -13,7 +13,6 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster/dist/MarkerCluster.Default.css" />
 
   <style>
-    /* 100dvh を使用してスマホのUIバー干渉を防止 */
     html, body {
       height: 100dvh;
       width: 100vw;
@@ -23,7 +22,6 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
 
-    /* ヘッダーバー */
     #header-bar {
       position: absolute;
       top: 0;
@@ -67,7 +65,6 @@
       transition: width 0.3s ease;
     }
 
-    /* 検索バーのスタイル */
     .search-container {
       width: 100%;
     }
@@ -98,14 +95,12 @@
     }
     .pref-btn:active { background: #0056b3; }
 
-    /* 地図エリア */
     #map {
       height: calc(100dvh - 94px);
       margin-top: 94px;
       width: 100vw;
     }
 
-    /* フィルターパネル */
     .filter-panel {
       position: absolute;
       top: 104px;
@@ -156,7 +151,6 @@
     }
     .open-today-check input { margin-right: 6px; }
 
-    /* バッジ */
     .badge-today {
       display: inline-block;
       background: #28a745;
@@ -178,7 +172,6 @@
       margin-bottom: 6px;
     }
 
-    /* モーダル */
     .modal-overlay {
       display: none;
       position: fixed;
@@ -223,7 +216,6 @@
     .pref-progress-container { width: 100%; background: #f0f0f0; height: 6px; border-radius: 3px; overflow: hidden; }
     .pref-progress-bar { height: 100%; background: #17a2b8; width: 0%; transition: width 0.3s ease; }
 
-    /* ポップアップ */
     .popup-content { font-size: 14px; line-height: 1.4; max-width: 260px; }
     .popup-content b.title { font-size: 16px; display: block; margin-top: 2px; }
     .popup-info { margin: 8px 0; font-size: 12px; color: #333; background: #f8f9fa; padding: 8px; border-radius: 4px; border-left: 3px solid #007bff; white-space: pre-wrap; word-break: break-word; }
@@ -286,7 +278,25 @@
 <script src="https://unpkg.com/leaflet.markercluster/dist/leaflet.markercluster.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/japanese-holidays@1.0.8/lib/japanese-holidays.min.js"></script>
 
-<script>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-app.js";
+  import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-analytics.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/12.17.1/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAkKagCVyIQ5h1ZGas4ilXxr1FUADB-Ij0",
+    authDomain: "manhole-map.firebaseapp.com",
+    projectId: "manhole-map",
+    storageBucket: "manhole-map.firebasestorage.app",
+    messagingSenderId: "285158432496",
+    appId: "1:285158432496:web:431a44939d9048d807ec35",
+    measurementId: "G-8T4XXL01FX"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+
   const map = L.map('map', {
     tap: L.Browser.mobile,
     layers: [
@@ -296,8 +306,17 @@
     ]
   }).setView([37.5, 137.5], 5);
 
-  let visited = JSON.parse(localStorage.getItem("visited")) || {};
-  function save() { localStorage.setItem("visited", JSON.stringify(visited)); }
+  let visited = {};
+  
+  // データの保存（Firestoreへ保存）
+  async function save() {
+    try {
+      await setDoc(doc(db, "settings", "visitedData"), visited);
+      console.log("クラウドに保存しました");
+    } catch (e) {
+      console.error("保存エラー: ", e);
+    }
+  }
 
   const commonSettings = {
     iconSize: [45, 46],
@@ -433,7 +452,6 @@
     renderPrefList();
   }
 
-  // 都道府県名義の正規化（「東京都府」「山梨県郡」などの重複や誤りを綺麗に修正）
   function getPrefName(place) {
     let rawPref = place.pref || place.prefecture || place.都道府県 || '';
     if (!rawPref && place.address) {
@@ -442,12 +460,10 @@
     }
     if (!rawPref) return 'その他';
 
-    // 末尾の重複や余分な文字を削除して正規化
     let cleaned = rawPref.toString().trim()
-      .replace(/[都道府県郡市区]+$/, '') // 末尾の「県」「都」「府」「郡」等をいったん全て落とす
-      .replace(/(東京|京都|大阪|北海道).*/, '$1'); // 特殊なケースの整理
+      .replace(/[都道府県郡市区]+$/, '')
+      .replace(/(東京|京都|大阪|北海道).*/, '$1');
 
-    // 正しい都道府県名へマッピング
     const list = [
       "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
       "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
@@ -463,10 +479,9 @@
         return p;
       }
     }
-    return rawPref; // 一致しない場合はそのまま返す
+    return rawPref;
   }
 
-  // 都道府県の正式な並び順（北から南）の設定
   const prefOrder = [
     "北海道", "青森県", "岩手県", "宮城県", "秋田県", "山形県", "福島県",
     "茨城県", "栃木県", "群馬県", "埼玉県", "千葉県", "東京都", "神奈川県",
@@ -591,34 +606,48 @@
     return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
   }
 
-  fetch('./places.xlsm')
-    .then(response => {
-      if (!response.ok) throw new Error('places.xlsm が見つかりません');
-      return response.arrayBuffer();
-    })
-    .then(buffer => {
-      const workbook = XLSX.read(buffer, { type: 'array' });
-      
-      places = [];
-      workbook.SheetNames.forEach(sheetName => {
-        const worksheet = workbook.Sheets[sheetName];
-        const sheetData = XLSX.utils.sheet_to_json(worksheet);
-        places = places.concat(sheetData);
-      });
+  // アプリ起動時にクラウドからデータを取得して初期化
+  async function initApp() {
+    try {
+      const docSnap = await getDoc(doc(db, "settings", "visitedData"));
+      if (docSnap.exists()) {
+        visited = docSnap.data() || {};
+      }
+    } catch (e) {
+      console.error("データ読み込みエラー:", e);
+    }
 
-      places.forEach((place, index) => {
-        const marker = createMarker(place);
-        if (marker) {
-          markersArray[index] = marker;
-          markerClusterGroup.addLayer(marker);
-        }
-      });
+    // Excelデータの読み込み
+    fetch('./places.xlsm')
+      .then(response => {
+        if (!response.ok) throw new Error('places.xlsm が見つかりません');
+        return response.arrayBuffer();
+      })
+      .then(buffer => {
+        const workbook = XLSX.read(buffer, { type: 'array' });
+        
+        places = [];
+        workbook.SheetNames.forEach(sheetName => {
+          const worksheet = workbook.Sheets[sheetName];
+          const sheetData = XLSX.utils.sheet_to_json(worksheet);
+          places = places.concat(sheetData);
+        });
 
-      map.addLayer(markerClusterGroup);
-      updateProgress();
-    })
-    .catch(error => console.error('エラー:', error));
+        places.forEach((place, index) => {
+          const marker = createMarker(place);
+          if (marker) {
+            markersArray[index] = marker;
+            markerClusterGroup.addLayer(marker);
+          }
+        });
 
+        map.addLayer(markerClusterGroup);
+        updateProgress();
+      })
+      .catch(error => console.error('エラー:', error));
+  }
+
+  initApp();
 </script>
 
 </body>
