@@ -305,7 +305,7 @@
     return false;
   }
 
-  // ★修正ポイント2: カンマ区切りのschedule_type（例: OFF_MON,OFF_YEAR_END）に対応
+// ★修正ポイント2: カンマ区切りのschedule_type（例: OFF_MON,PERIOD_4/29-10/31）に対応
   function isTodayOpen(place) {
     const today = new Date();
     const month = today.getMonth() + 1;
@@ -316,6 +316,39 @@
 
     const rawType = (place.schedule_type || 'ALL').toString().trim().toUpperCase();
     const types = rawType.split(',').map(t => t.trim());
+
+    // --------------------------------------------------
+    // ★追加：汎用・開館期間チェック (例: PERIOD_4/29-10/31)
+    // --------------------------------------------------
+    for (let type of types) {
+      if (type.startsWith('PERIOD_')) {
+        // "PERIOD_4/29-10/31" から "4/29" と "10/31" を抽出
+        const periodStr = type.replace('PERIOD_', '');
+        const [startStr, endStr] = periodStr.split('-');
+
+        if (startStr && endStr) {
+          const [startM, startD] = startStr.split('/').map(Number);
+          const [endM, endD] = endStr.split('/').map(Number);
+
+          // 今日の日付数値 (例: 4月29日 -> 429)
+          const currentVal = month * 100 + date;
+          const startVal = startM * 100 + startD;
+          const endVal = endM * 100 + endD;
+
+          if (startVal <= endVal) {
+            // 例: 4/29(429) ～ 10/31(1031) のように年を跨がない期間
+            if (currentVal < startVal || currentVal > endVal) {
+              return false; // 期間外なら休館
+            }
+          } else {
+            // 例: 12/1(1201) ～ 3/31(331) のように年を跨ぐ冬期営業などの期間
+            if (currentVal < startVal && currentVal > endVal) {
+              return false; // 期間外なら休館
+            }
+          }
+        }
+      }
+    }
 
     // 1. 年末年始チェック（12/29〜1/3）
     const isYearEndPeriod = (month === 12 && date >= 29) || (month === 1 && date <= 3);
