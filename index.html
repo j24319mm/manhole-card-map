@@ -540,9 +540,9 @@
     return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
   }
 
-fetch('./places.xlsx')
+fetch('./places.xlsm')
     .then(response => {
-      if (!response.ok) throw new Error('places.xlsx が見つかりません');
+      if (!response.ok) throw new Error('places.xlsm が見つかりません');
       return response.arrayBuffer();
     })
     .then(buffer => {
