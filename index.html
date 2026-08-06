@@ -29,7 +29,7 @@
       top: 0;
       left: 0;
       width: 100%;
-      height: 54px;
+      height: 94px; /* 検索窓追加に伴い高さを拡張 */
       background: rgba(255, 255, 255, 0.95);
       backdrop-filter: blur(4px);
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -37,7 +37,7 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
-      padding: 0 12px;
+      padding: 6px 12px;
       box-sizing: border-box;
     }
 
@@ -57,6 +57,7 @@
       border-radius: 10px;
       height: 8px;
       overflow: hidden;
+      margin-bottom: 6px;
     }
 
     .progress-bar {
@@ -64,6 +65,24 @@
       width: 0%;
       background-color: #28a745;
       transition: width 0.3s ease;
+    }
+
+    /* 検索バーのスタイル */
+    .search-container {
+      width: 100%;
+    }
+    .search-input {
+      width: 100%;
+      padding: 6px 10px;
+      font-size: 13px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      outline: none;
+    }
+    .search-input:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 4px rgba(0, 123, 255, 0.3);
     }
 
     .pref-btn {
@@ -79,17 +98,17 @@
     }
     .pref-btn:active { background: #0056b3; }
 
-    /* 地図エリア */
+    /* 地図エリア（ヘッダーの高さ変更に伴い調整） */
     #map {
-      height: calc(100dvh - 54px);
-      margin-top: 54px;
+      height: calc(100dvh - 94px);
+      margin-top: 94px;
       width: 100vw;
     }
 
-    /* フィルターパネル */
+    /* フィルターパネル（位置調整） */
     .filter-panel {
       position: absolute;
-      top: 64px;
+      top: 104px;
       right: 10px;
       z-index: 1000;
       background: rgba(255, 255, 255, 0.95);
@@ -223,6 +242,10 @@
   <div class="progress-container">
     <div id="total-progress-bar" class="progress-bar"></div>
   </div>
+  <!-- 検索入力欄の追加 -->
+  <div class="search-container">
+    <input type="text" id="searchInput" class="search-input" placeholder="🔍 名称・住所・詳細で検索..." oninput="applyFilters()">
+  </div>
 </div>
 
 <div id="map"></div>
@@ -297,7 +320,6 @@
     maxClusterRadius: 50
   });
 
-  // ★修正ポイント1: ライブラリ未読み込み時でもクラッシュしない安全装置
   function checkIsHoliday(dateObj) {
     if (typeof JapaneseHolidays !== 'undefined' && JapaneseHolidays.isHoliday) {
       return !!JapaneseHolidays.isHoliday(dateObj);
@@ -305,8 +327,7 @@
     return false;
   }
 
-// ★修正ポイント2: カンマ区切りのschedule_type（例: OFF_MON,PERIOD_4/29-10/31）に対応
- function isTodayOpen(place) {
+  function isTodayOpen(place) {
     const today = new Date();
     const month = today.getMonth() + 1;
     const date = today.getDate();
@@ -317,16 +338,10 @@
     const rawType = (place.schedule_type || 'ALL').toString().trim().toUpperCase();
     const types = rawType.split(',').map(t => t.trim());
 
-    // --------------------------------------------------
-    // ★追加：一時停止・配布終了の即時判定
-    // --------------------------------------------------
     if (types.includes('PAUSED') || types.includes('ENDED')) {
-      return false; // 無条件で本日配布なし（赤ピン）にする
+      return false;
     }
 
-    // --------------------------------------------------
-    // 汎用・開館期間チェック (例: PERIOD_4/29-10/31)
-    // --------------------------------------------------
     for (let type of types) {
       if (type.startsWith('PERIOD_')) {
         const periodStr = type.replace('PERIOD_', '');
@@ -349,31 +364,20 @@
       }
     }
 
-    // 1. 年末年始チェック（12/29〜1/3）
     const isYearEndPeriod = (month === 12 && date >= 29) || (month === 1 && date <= 3);
     if (types.includes('OFF_YEAR_END') && isYearEndPeriod) {
       return false;
     }
 
-    // 2. 年中無休
     if (types.includes('ALL')) return true;
+    if (types.includes('WEEKDAY') && isWeekendOrHoliday) return false;
+    if (types.includes('WEEKEND') && !isWeekendOrHoliday) return false;
 
-    // 3. 平日限定（土日祝はお休み）
-    if (types.includes('WEEKDAY') && isWeekendOrHoliday) {
-      return false;
-    }
-
-    // 4. 土日祝限定（平日はお休み）
-    if (types.includes('WEEKEND') && !isWeekendOrHoliday) {
-      return false;
-    }
-
-    // 5. 特定曜日のお休みチェック (例: OFF_MON)
     const daysMap = { 'OFF_SUN': 0, 'OFF_MON': 1, 'OFF_TUE': 2, 'OFF_WED': 3, 'OFF_THU': 4, 'OFF_FRI': 5, 'OFF_SAT': 6 };
     for (let key in daysMap) {
       if (types.includes(key)) {
         if (day === daysMap[key]) {
-          return isHoliday; // 当該曜日でも祝日なら開館
+          return isHoliday;
         }
       }
     }
@@ -411,7 +415,6 @@
     `;
   }
 
-  // ★修正ポイント3: 重複ID（平日・休日窓口）に対応した正確なカード種類数基準の進捗計算
   function updateProgress() {
     if (places.length === 0) return;
 
@@ -443,7 +446,6 @@
     return 'その他';
   }
 
-  // ★修正ポイント4: 都道府県別モーダルもカード種類数ベースで集計
   function renderPrefList() {
     const prefData = {};
 
@@ -490,6 +492,7 @@
   window.applyFilters = function() {
     const statusFilter = document.querySelector('input[name="statusFilter"]:checked').value;
     const todayOnly = document.getElementById('todayOnlyFilter').checked;
+    const searchText = document.getElementById('searchInput').value.toLowerCase().trim();
 
     markerClusterGroup.clearLayers();
 
@@ -507,7 +510,17 @@
 
       let todayMatch = !todayOnly || isOpenToday;
 
-      if (statusMatch && todayMatch) {
+      // 検索ワードの判定 (名称、住所、詳細情報のいずれかに含まれているか)
+      let searchMatch = true;
+      if (searchText !== '') {
+        const name = (place.name || '').toLowerCase();
+        const address = (place.address || '').toLowerCase();
+        const info = (place.info || '').toLowerCase();
+        
+        searchMatch = name.includes(searchText) || address.includes(searchText) || info.includes(searchText);
+      }
+
+      if (statusMatch && todayMatch && searchMatch) {
         markerClusterGroup.addLayer(marker);
       }
     });
@@ -540,7 +553,7 @@
     return L.marker([lat, lng], { icon: icon }).bindPopup(createPopupContent(place));
   }
 
-fetch('./places.xlsm')
+  fetch('./places.xlsm')
     .then(response => {
       if (!response.ok) throw new Error('places.xlsm が見つかりません');
       return response.arrayBuffer();
@@ -548,7 +561,6 @@ fetch('./places.xlsm')
     .then(buffer => {
       const workbook = XLSX.read(buffer, { type: 'array' });
       
-      // ★全シートのデータをまとめて読み込むように修正
       places = [];
       workbook.SheetNames.forEach(sheetName => {
         const worksheet = workbook.Sheets[sheetName];
