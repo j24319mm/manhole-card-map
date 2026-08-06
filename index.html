@@ -345,7 +345,7 @@
     return false;
   }
 
-  function isTodayOpen(place) {
+function isTodayOpen(place) {
     const today = new Date();
     const month = today.getMonth() + 1;
     const date = today.getDate();
@@ -360,17 +360,45 @@
       return false;
     }
 
-    // 1. 期間（PERIOD_）の判定
+    const currentVal = month * 100 + date;
+
+    // ★ 新機能：任意の除外日・除外期間（OFF_PERIOD_ または OFF_単日）の判定
     for (let type of types) {
-      if (type.startsWith('PERIOD_')) {
+      if (type.startsWith('OFF_PERIOD_')) {
+        // 例: OFF_PERIOD_8/13-8/15 のように期間を指定した場合
+        const periodStr = type.replace('OFF_PERIOD_', '');
+        const [startStr, endStr] = periodStr.split('-');
+        if (startStr && endStr) {
+          const [startM, startD] = startStr.split('/').map(Number);
+          const [endM, endD] = endStr.split('/').map(Number);
+          const startVal = startM * 100 + startD;
+          const endVal = endM * 100 + endD;
+
+          if (startVal <= endVal) {
+            if (currentVal >= startVal && currentVal <= endVal) return false;
+          } else {
+            if (currentVal >= startVal || currentVal <= endVal) return false;
+          }
+        }
+      } else if (type.startsWith('OFF_') && type.includes('/')) {
+        // 例: OFF_1/1 や OFF_5/5 のように「OFF_月/日」でピンポイント指定した場合
+        const targetStr = type.replace('OFF_', '');
+        const [targetM, targetD] = targetStr.split('/').map(Number);
+        if (month === targetM && date === targetD) {
+          return false;
+        }
+      }
+    }
+
+    // 1. 期間（PERIOD_）の判定（従来通り）
+    for (let type of types) {
+      if (type.startsWith('PERIOD_') && !type.startsWith('OFF_')) {
         const periodStr = type.replace('PERIOD_', '');
         const [startStr, endStr] = periodStr.split('-');
 
         if (startStr && endStr) {
           const [startM, startD] = startStr.split('/').map(Number);
           const [endM, endD] = endStr.split('/').map(Number);
-
-          const currentVal = month * 100 + date;
           const startVal = startM * 100 + startD;
           const endVal = endM * 100 + endD;
 
@@ -380,7 +408,6 @@
             if (currentVal < startVal && currentVal > endVal) return false;
           }
         } else if (startStr && !endStr) {
-          // 単日指定の場合（例: PERIOD_1/1）
           const [targetM, targetD] = startStr.split('/').map(Number);
           if (month !== targetM || date !== targetD) return false;
         }
@@ -393,11 +420,10 @@
       return false;
     }
 
-    // 3. 英語の曜日直接指定の判定（例: TUESDAY など）
+    // 3. 英語の曜日直接指定の判定
     const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
     const todayDayName = dayNames[day];
     
-    // もし特定の曜日のみ営業/配布する指定がある場合
     let hasSpecificDay = false;
     let matchSpecificDay = false;
     for (let dName of dayNames) {
@@ -421,7 +447,7 @@
     for (let key in daysMap) {
       if (types.includes(key)) {
         if (day === daysMap[key]) {
-          return isHoliday; // 祝日の場合は営業する場合を考慮
+          return isHoliday;
         }
       }
     }
