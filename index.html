@@ -349,7 +349,7 @@
     const today = new Date();
     const month = today.getMonth() + 1;
     const date = today.getDate();
-    const day = today.getDay();
+    const day = today.getDay(); // 0:日, 1:月, 2:火, 3:水, 4:木, 5:金, 6:土
     const isHoliday = checkIsHoliday(today);
     const isWeekendOrHoliday = (day === 0 || day === 6 || isHoliday);
 
@@ -360,6 +360,7 @@
       return false;
     }
 
+    // 1. 期間（PERIOD_）の判定
     for (let type of types) {
       if (type.startsWith('PERIOD_')) {
         const periodStr = type.replace('PERIOD_', '');
@@ -378,12 +379,36 @@
           } else {
             if (currentVal < startVal && currentVal > endVal) return false;
           }
+        } else if (startStr && !endStr) {
+          // 単日指定の場合（例: PERIOD_1/1）
+          const [targetM, targetD] = startStr.split('/').map(Number);
+          if (month !== targetM || date !== targetD) return false;
         }
       }
     }
 
+    // 2. 年末年始（OFF_YEAR_END）の判定
     const isYearEndPeriod = (month === 12 && date >= 29) || (month === 1 && date <= 3);
     if (types.includes('OFF_YEAR_END') && isYearEndPeriod) {
+      return false;
+    }
+
+    // 3. 英語の曜日直接指定の判定（例: TUESDAY など）
+    const dayNames = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
+    const todayDayName = dayNames[day];
+    
+    // もし特定の曜日のみ営業/配布する指定がある場合
+    let hasSpecificDay = false;
+    let matchSpecificDay = false;
+    for (let dName of dayNames) {
+      if (types.includes(dName)) {
+        hasSpecificDay = true;
+        if (dName === todayDayName) {
+          matchSpecificDay = true;
+        }
+      }
+    }
+    if (hasSpecificDay && !matchSpecificDay) {
       return false;
     }
 
@@ -391,11 +416,12 @@
     if (types.includes('WEEKDAY') && isWeekendOrHoliday) return false;
     if (types.includes('WEEKEND') && !isWeekendOrHoliday) return false;
 
+    // 4. 定休日（OFF_SUN など）の判定
     const daysMap = { 'OFF_SUN': 0, 'OFF_MON': 1, 'OFF_TUE': 2, 'OFF_WED': 3, 'OFF_THU': 4, 'OFF_FRI': 5, 'OFF_SAT': 6 };
     for (let key in daysMap) {
       if (types.includes(key)) {
         if (day === daysMap[key]) {
-          return isHoliday;
+          return isHoliday; // 祝日の場合は営業する場合を考慮
         }
       }
     }
